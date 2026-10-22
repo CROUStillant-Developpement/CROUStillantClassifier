@@ -24,13 +24,13 @@ from dataclasses import asdict, dataclass, field
 from importlib import resources
 from pathlib import Path
 
-from .canon import Lexicon, split_plate
+from .canon import Lexicon, split_plate, vegetarian_components
 from .classify import category_type, decide, head, name_type
 from .parse import KIND_DISH, Parsed, parse
 
 import collections
 
-VERSION = "2.0.0"
+VERSION = "2.1.0"
 
 
 @dataclass
@@ -57,6 +57,11 @@ class Analysis:
     version: str = VERSION
 
     @property
+    def vegetarian(self) -> bool:
+        """Le plat entier est végétarien (tous ses composants)."""
+        return bool(self.components) and all(c.vegetarian for c in self.components)
+
+    @property
     def is_dish(self) -> bool:
         return self.parsed.kind == KIND_DISH and bool(self.components)
 
@@ -77,9 +82,10 @@ class Classifier:
             return Analysis(p, [], cat_t, None)
 
         parts, sep = split_plate(p.name, self.lexicon)
+        vegs = vegetarian_components(parts, p.vegetarian, p.veg_scope, p.veg_anchors)
         comps = []
         for i, part in enumerate(parts):
-            veg = p.vegetarian and i == 0
+            veg = vegs[i]
             key = self.lexicon.key(part, vegetarian=veg)
             if not key:
                 continue

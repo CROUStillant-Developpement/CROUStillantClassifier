@@ -148,6 +148,24 @@ class Lexicon:
         return self.key(name) in self.known
 
 
+def vegetarian_components(parts: list[str], vegetarian: bool, scope: str | None,
+                          anchors: list[str]) -> list[bool]:
+    """
+    Composants concernés par une mention végétarienne.
+
+    - "Plat végétarien : boulgour, carotte" / "…, riz, veggie" (portée ALL) → tous ;
+    - "Cordon bleu, falafel de pois chiche (vg)" → seulement l'élément qui porte la mention ;
+    - mention dont l'élément est introuvable → aucun (mieux vaut ne rien affirmer que de
+      déclarer végétarien un cordon bleu).
+    """
+    if not vegetarian:
+        return [False] * len(parts)
+    if scope == "ALL" or len(parts) == 1:
+        return [True] * len(parts)
+    anchor_toks = {t for a in anchors for t in tokens(a)}
+    return [bool(set(tokens(part)) & anchor_toks) for part in parts]
+
+
 # --------------------------------------------------------------------------- #
 # Découpage des plateaux
 # --------------------------------------------------------------------------- #

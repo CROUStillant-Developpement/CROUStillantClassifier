@@ -1,6 +1,6 @@
 [project]
 name = "croustillant-classifier"
-version = "2.0.0"
+version = "2.1.0"
 description = "Nettoyage, dédoublonnage et typage des plats des restaurants du CROUS."
 authors = [{ name = "CROUStillant Développement" }]
 readme = "README.md"

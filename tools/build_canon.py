@@ -17,7 +17,7 @@ import re
 import sys
 from pathlib import Path
 
-from croustillant_classifier.canon import Lexicon, split_plate
+from croustillant_classifier.canon import Lexicon, split_plate, vegetarian_components
 from croustillant_classifier.parse import fold
 
 RESOURCES = Path("croustillant_classifier/resources")
@@ -51,9 +51,9 @@ def main() -> None:
             if sep:
                 split_examples[sep].append(f'{p["name"]!r} → {parts}')
             comps = []
+            vegs = vegetarian_components(parts, p["vegetarian"], p["veg_scope"], p["veg_anchors"])
             for i, part in enumerate(parts):
-                # le régime annoncé porte sur le plat principal, pas sur le riz qui l'accompagne
-                k = lex.key(part, vegetarian=p["vegetarian"] and i == 0)
+                k = lex.key(part, vegetarian=vegs[i])
                 if not k:
                     continue
                 comps.append({"name": part, "key": k})

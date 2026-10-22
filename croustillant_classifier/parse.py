@@ -41,6 +41,10 @@ class Parsed:
     labels: list[str] = field(default_factory=list)    # bio, maison, msc, bbc, vf…
     meats: list[str] = field(default_factory=list)     # porc, bœuf… (annoncés)
     vegetarian: bool = False
+    # portée de la mention végétarienne : "ALL" (préfixe "Plat végétarien :", "…, riz, veggie")
+    # ou "ITEMS" (accolée à un élément : "Cordon bleu, falafel (vg)") ; voir `veg_anchors`
+    veg_scope: str | None = None
+    veg_anchors: list[str] = field(default_factory=list)  # mot qui précède chaque mention accolée
     details: list[str] = field(default_factory=list)   # "(chorizo, poivrons)" : description
     section_hint: str | None = None      # type suggéré par un préfixe ("Dessert : …")
     station: str | None = None           # "chaîne étudiants", "barquette"…
@@ -199,7 +203,28 @@ _LABELS = {"bio": "bio", "ab": "bio", "maison": "maison", "fait maison": "maison
 _PAREN = re.compile(r"\s*[\(\[]([^()\[\]]*)[\)\]]")
 
 
-def _classify_paren(inner: str, p: Parsed) -> bool:
+_ANCHOR_SKIP = {"de", "du", "des", "d", "a", "au", "aux", "la", "le", "les", "l", "et", "sauce", "en", "plat", "plats"}
+
+
+def _mark_vegetarian(p: Parsed, before: str | None) -> None:
+    """
+    Enregistre une mention végétarienne et sa portée. `before` est le texte qui la précède :
+    None ou un séparateur en fin ("…, riz, veggie") → tout le libellé ; sinon le dernier mot
+    devient l'ancre de l'élément concerné ("falafel de pois chiche (vg)" → "chiche").
+    """
+    p.vegetarian = True
+    if before is None or re.search(r"[,/+;\-]\s*$", before):
+        p.veg_scope = "ALL"
+        return
+    words = [w for w in re.findall(r"[a-z0-9]+", fold(before)) if w not in _ANCHOR_SKIP and len(w) > 1]
+    if not words:
+        p.veg_scope = "ALL"
+        return
+    p.veg_anchors.append(words[-1])
+    p.veg_scope = p.veg_scope or "ITEMS"
+
+
+def _classify_paren(inner: str, p: Parsed, before: str | None = None) -> bool:
     """Absorbe le contenu d'une parenthèse s'il s'agit d'une méta-donnée."""
     f = fold(inner).strip(" .,;:-*")
     if not f:
@@ -208,7 +233,7 @@ def _classify_paren(inner: str, p: Parsed) -> bool:
     absorbed = True
     for part in parts:
         if re.fullmatch(_VEG, part):
-            p.vegetarian = True
+            _mark_vegetarian(p, before)
         elif part in _MEATS:
             p.meats.append(_MEATS[part])
         elif m := re.fullmatch(r"(?:(?:viande|porc|boeuf|volaille|poulet)\s+)?(?:d'\s*)?(?:origine|orig\.?|provenance)\s*:?\s*(.+)", part):
@@ -273,7 +298,7 @@ def _strip_prefixes(text: str, p: Parsed) -> str:
             p.station = fold(m.group(1)).strip()
             text = text[m.end():]
         if m := _DIET_PREFIX.match(text):
-            p.vegetarian = True
+            _mark_vegetarian(p, None)
             text = text[m.end():]
         if ":" in text:
             head, tail = text.split(":", 1)
@@ -417,7 +442,7 @@ def parse(raw: str) -> Parsed:
 
     # 5. parenthèses de méta-données
     def _paren(m: re.Match) -> str:
-        if _classify_paren(m.group(1), p):
+        if _classify_paren(m.group(1), p, before=m.string[:m.start()]):
             return " "
         # une description n'est sortie du nom que s'il reste un vrai nom devant elle
         if re.search(r"[a-zà-ÿ]{3}", m.string[:m.start()], re.I):
@@ -428,7 +453,7 @@ def parse(raw: str) -> Parsed:
 
     # 6. régime annoncé en fin de morceau : "Pâtes carbonara végé, salade verte"
     def _veg_mid(m: re.Match) -> str:
-        p.vegetarian = True
+        _mark_vegetarian(p, m.string[:m.start()])
         return ""
     text = re.sub(rf"\s+-?\s*\b(?:{_VEG})\b(?=\s*[,/+;])", _veg_mid, text, flags=re.I)
 
@@ -438,7 +463,8 @@ def parse(raw: str) -> Parsed:
                       text, re.I)
         if not m or not re.search(r"[a-zà-ÿ]{3}", text[:m.start()], re.I):
             break
-        if not _classify_paren(m.group(1), p):
+        sep = "," if re.match(r"\s*[-,]", m.group(0)) else ""
+        if not _classify_paren(m.group(1), p, before=text[:m.start()] + sep):
             break
         text = text[:m.start()]
 

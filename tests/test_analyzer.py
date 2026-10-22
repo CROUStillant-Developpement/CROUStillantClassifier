@@ -40,3 +40,27 @@ def test_same_key_as_offline(clf):
 ])
 def test_occurrence_type(default, cat, main, expected):
     assert occurrence_type(default, cat, main) == expected
+
+
+@pytest.mark.parametrize("raw, expected", [
+    # mention globale : tous les composants
+    ("Vg: boulgour, carotte, tomate", [True, True, True]),
+    ("VG : boulgour, carotte, tomate", [True, True, True]),
+    ("vg : boulgour, carotte, tomate", [True, True, True]),
+    ("Plat sans viande : bourguignon - pâtes", [True, True]),
+    ("Boulettes de blé thaï, poêlée de légumes, riz, veggie", [True, True, True]),
+    # mention accolée à un élément : lui seul
+    ("Cordon bleu, bouchée falafel de pois chiche(vg), courgette", [False, True, False]),
+    ("Cordon bleu, bouchée falafel de pois chiche (VG), courgette", [False, True, False]),
+    ("Poisson pané, riz, ratatouille Vg", [False, False, True]),
+])
+def test_vegetarian_scope(clf, raw, expected):
+    a = clf.analyse(raw, category="Plats")
+    assert [c.vegetarian for c in a.components] == expected, [c.label for c in a.components]
+    assert a.vegetarian == all(expected)
+
+
+def test_vegetarian_single_dish(clf):
+    for raw in ("Lasagnes aux légumes VG", "Lasagnes aux légumes vg", "Lasagnes aux légumes (Vg)"):
+        [c] = clf.analyse(raw).components
+        assert c.vegetarian and c.key.endswith("~vg")
