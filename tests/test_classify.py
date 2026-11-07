@@ -35,6 +35,14 @@ def test_category_type(cat, t):
     # ambiguïtés qui ne doivent PAS être tranchées par le nom
     ("Pommes de terre sautées", "ACCOMPAGNEMENT"), ("Fruits de mer", None), ("Flan de légumes", None),
     ("Beignets de calamars", None), ("Croissant au jambon", None), ("Pâtes bolognaise", None),
+    # têtes de dessert en version salée
+    ("Crumble de légumes au chèvre", "PLAT"), ("Crumble de butternut", "PLAT"),
+    ("Clafoutis salé aux poireaux et au camembert", "PLAT"), ("Tartelette forestière", "PLAT"),
+    ("Cake jambon olives", "PLAT"), ("Tarte aux légumes", "PLAT"),
+    ("Crumble aux pommes", "DESSERT"), ("Clafoutis aux cerises", "DESSERT"), ("Gâteau aux carottes", "DESSERT"),
+    ("Muffin caramel beurre salé", "DESSERT"), ("Tarte tatin caramel au caramel salé", "DESSERT"),
+    # la raclette est le plat, pas le fromage
+    ("Raclette", "PLAT"),
 ])
 def test_name_type(label, t):
     assert name_type(label) == t
