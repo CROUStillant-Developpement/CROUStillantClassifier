@@ -66,7 +66,7 @@ def category_type(tpcat: str) -> str | None:
 
 _CHEESES = (r"camembert|brie|emmental|comte|cantal|edam|gouda|mimolette|coulommiers|saint\s*paulin|st\s*paulin|"
             r"tomme|reblochon|roquefort|bleu\s+d.auvergne|fourme|munster|morbier|pont\s*l.eveque|carre\s+de\s+l.est|"
-            r"chevre|vache\s+qui\s+rit|babybel|kiri|saint\s*nectaire|raclette|fromage\s+a\s+la\s+coupe|"
+            r"chevre|vache\s+qui\s+rit|babybel|kiri|saint\s*nectaire|fromage\s+a\s+la\s+coupe|"
             r"assiette\s+de\s+fromages?|plateau\s+de\s+fromages?|fromages?|portion\s+de\s+fromage|buchette|"
             r"petit\s+suisse|fromage\s+fondu|maroilles|livarot|neufchatel|ossau|beaufort|abondance|feta")
 _FRUITS = (r"fruits?|pommes?|poires?|bananes?|oranges?|clementines?|mandarines?|kiwis?|raisins?|peches?|"
@@ -115,7 +115,8 @@ NAME_RULES: list[tuple[str, str]] = [
     (rf"({_CHEESES})(\s+(aop|bio|fermier|affine|du\s+jour|au\s+choix))?"
      rf"(\s*(ou|/|,)\s*({_CHEESES})(\s+(aop|bio|fermier|affine))?)*", "FROMAGE"),
     # plats décidés à la main (choix éditorial, prioritaire sur les catégories)
-    (r"ratatouille(\s+(maison|bio|nicoise|provencale))*", "PLAT"),
+    # "Raclette" seule est le plat (servie en plat dans 100 % des menus), pas le fromage
+    (r"(ratatouille|raclette)(\s+(maison|bio|nicoise|provencale|savoyarde))*", "PLAT"),
     # accompagnements
     (r"(frites?|potatoes|pommes?\s+(de\s+terre\s+)?(vapeur|sautees?|rissolees?|noisettes?|frites|dauphines?|"
      r"grenailles?|campagnardes?|paillasson)|pommes\s+de\s+terre|puree|gratin\s+dauphinois|"
@@ -138,6 +139,21 @@ NAME_RULES: list[tuple[str, str]] = [
 ]
 _NAME_RULES = [(re.compile(rx), t) for rx, t in NAME_RULES]
 
+# Têtes de dessert qui existent aussi en version salée ("Crumble de légumes au chèvre",
+# "Clafoutis salé aux poireaux", "Tartelette forestière") : avec un ingrédient salé, c'est un plat
+# (servi en entrée, il le devient ce jour-là, voir OCCURRENCE_OVERRIDES). Pas "gâteau" ni "patate
+# douce" : "Gâteau au fromage", "Gâteau de patate douce" sont des desserts.
+_SAVOURY_HEADS = re.compile(
+    r"(crumbles?|clafoutis|tartes?|tartelettes?|cakes?|muffins?|madeleines?|financiers?|"
+    r"mille\s*-?\s*feuilles?|creme\s+brulee)\b")
+_SAVOURY = re.compile(
+    # "salé" mais pas "caramel (au beurre) salé"
+    r"\b((?<!beurre\s)(?<!caramel\s)salee?|legumes?|courgettes?|poireaux?|potirons?|potimarrons?|butternut|courges?|"
+    r"brocolis?|epinards?|tomates?|champignons?|forestiere|oignons?|poivrons?|aubergines?|asperges?|"
+    r"endives?|fenouil|petits?\s+pois|chevre|camembert|emmental|comte|roquefort|"
+    r"maroilles|mozzarella|feta|reblochon|fromages?(?!\s+blanc)|saumon|thon|poulet|volaille|"
+    r"jambon|lardons?|chorizo|boeuf|viande|poissons?|crevettes?|surimi|foie\s+gras|olives?)\b")
+
 
 def name_type(label: str) -> str | None:
     f = fold(label)
@@ -145,6 +161,8 @@ def name_type(label: str) -> str | None:
                r"selection\s+de|choix\s+de)\s+)+", "", f)
     f = re.sub(r"[^a-z0-9' /,]", " ", f)
     f = re.sub(r"\s+", " ", f).strip()
+    if _SAVOURY_HEADS.match(f) and _SAVOURY.search(f):
+        return "PLAT"
     if re.match(r"(pommes?\s+de\s+terre|fruits?\s+de\s+mer)\b", f):   # pas des desserts
         rules = [(rx, t) for rx, t in _NAME_RULES if t != "DESSERT"]
     else:
