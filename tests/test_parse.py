@@ -38,6 +38,20 @@ def test_points_range(raw, name, points, note):
     assert (p.name, p.points, p.points_note) == (name, points, note)
 
 
+@pytest.mark.parametrize("raw, name, prices", [
+    ("Formule cafet' 3,30 ou 1€", "Formule cafet", [3.3, 1.0]),
+    ("Formule cafet' 3,30 ou1€", "Formule cafet", [3.3, 1.0]),
+    ("Formule 3,30€ ou 1€", "Formule", [3.3, 1.0]),
+    ("Café 1€ ou 2 €", "Café", [1.0, 2.0]),
+    ("Formule rapide étudiants (3€30 ou 1€ boursier)", "Formule rapide étudiants boursier", [3.3, 1.0]),
+    # "ou" entre deux plats n'est pas une alternative de prix
+    ("Pâtes ou riz 2€", "Pâtes ou riz", [2.0]),
+])
+def test_price_alternatives(raw, name, prices):
+    p = parse(raw)
+    assert (p.name, p.prices) == (name, prices)
+
+
 def test_points_quantity():
     p = parse("Assortiment de gâteaux (2 pour 1 point)")
     assert (p.name, p.points, p.points_note) == ("Assortiment de gâteaux", 1, "2 pour 1 point(s)")

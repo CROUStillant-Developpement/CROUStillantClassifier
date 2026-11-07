@@ -179,6 +179,14 @@ _TRAILING_INT = re.compile(r"(?<=[a-zà-ÿœ\)])\s*[-/]?\s+([1-9])\s*$", re.I)
 
 _PRICE = re.compile(
     r"[\(\[]?\s*[-:,]?\s*(?:[aà]\s+)?(\d+(?:[.,]\d{1,2})?)\s*(?:€|euros?\b|eur\b)\s*(?:ht|ttc)?\s*[\)\]]?", re.I)
+# alternative de prix : "3,30 ou 1€", "3,30€ ou 1€", "1€ ou 2 €" (traitée avant _PRICE, qui ne
+# verrait que le dernier montant, ou chaque montant séparément, et laisserait "ou" dans le nom)
+_EUR = r"(?:€|euros?\b|eur\b)"
+# montant : "3,30", "3.30", "1", ou "3€30"
+_AMOUNT = r"\d+(?:[.,]\d{1,2}|€\d{2})?"
+_PRICE_ALT = re.compile(
+    rf"[\(\[]?\s*[-:,]?\s*(?:[aà]\s+)?(?<![\d.,€])(?P<alt>{_AMOUNT}\s*{_EUR}?\s*\bou\s*{_AMOUNT})"
+    rf"\s*{_EUR}\s*(?:ht|ttc)?\s*[\)\]]?", re.I)
 
 
 # --------------------------------------------------------------------------- #
@@ -419,6 +427,11 @@ def parse(raw: str) -> Parsed:
     def _price(m: re.Match) -> str:
         p.prices.append(float(m.group(1).replace(",", ".")))
         return " "
+
+    def _price_alt(m: re.Match) -> str:
+        p.prices.extend(float(re.sub(r"[,€]", ".", v)) for v in re.findall(_AMOUNT, m.group("alt")))
+        return " "
+    text = _PRICE_ALT.sub(_price_alt, text)
     text = _PRICE.sub(_price, text)
 
     # 3. points
