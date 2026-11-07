@@ -24,6 +24,20 @@ def test_points(raw, name, points):
     assert p.points == points
 
 
+@pytest.mark.parametrize("raw, name, points, note", [
+    ("Crudités diverses 1 ou 2 pts", "Crudités diverses", 2, "1 ou 2 point(s)"),
+    ("Pâtisserie - 1 ou 2 pts", "Pâtisserie", 2, "1 ou 2 point(s)"),
+    ("Salade bar (1 ou 2 points)", "Salade bar", 2, "1 ou 2 point(s)"),
+    ("Pâtisserie diverse (1, 2 ou 3 points)", "Pâtisserie diverse", 3, "1, 2 ou 3 point(s)"),
+    ("Sandwich 3 à 4 pts", "Sandwich", 4, "3 à 4 point(s)"),
+    # "2 ou 3" sans unité n'est pas une fourchette de points
+    ("Formule 2 ou 3 plats 4 points", "Formule 2 ou 3 plats", 4, None),
+])
+def test_points_range(raw, name, points, note):
+    p = parse(raw)
+    assert (p.name, p.points, p.points_note) == (name, points, note)
+
+
 def test_points_quantity():
     p = parse("Assortiment de gâteaux (2 pour 1 point)")
     assert (p.name, p.points, p.points_note) == ("Assortiment de gâteaux", 1, "2 pour 1 point(s)")

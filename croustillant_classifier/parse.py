@@ -161,6 +161,12 @@ _POINTS = re.compile(
     rf"[\(\[]?\s*[-/,]?\s*(?P<supp>suppl[eé]ment(?:aire)?s?\s*:?\s*\+?\s*)?"
     rf"(?:(?P<qty>\d+)\s*pour\s*)?{_NUM}\s*(?:pts?|points?|ps|pt?s?\.)(?=[\s\)\].,;:+/\-]|$)\.?\s*\+?\s*"
     rf"(?:suppl[eé]ment(?:aire)?s?)?\s*[\)\]]?", re.I)
+# fourchette de points : "1 ou 2 pts", "(1, 2 ou 3 points)", "4 à 5 points"
+# (traitée avant _POINTS, qui ne verrait que le dernier nombre et laisserait "1 ou" dans le nom)
+_N = r"\d+(?:[.,]5)?"
+_POINTS_RANGE = re.compile(
+    rf"[\(\[]?\s*[-/,]?\s*(?P<range>{_N}(?:\s*,\s*{_N})*\s*\b(?:ou|à|a)\b\s*{_N})\s*"
+    rf"(?:pts?|points?)(?=[\s\)\].,;:+/\-]|$)\.?\s*[\)\]]?", re.I)
 # "4p" seulement en fin de chaîne (sinon trop ambigu)
 _POINTS_P = re.compile(rf"\s*[-/,]?\s*\(?\s*{_NUM}\s*p\s*\)?\s*$", re.I)
 # entier nu en fin de libellé, après un mot ("Omelette au fromage 4")
@@ -426,6 +432,15 @@ def parse(raw: str) -> Parsed:
         if m.group("supp") or re.search(r"suppl", m.group(0), re.I):
             p.points_note = "supplément"
         return " "
+
+    def _points_range(m: re.Match) -> str:
+        # on garde le plus élevé (ce que retenait déjà _POINTS) ; la fourchette va dans la note
+        vals = [float(v.replace(",", ".")) for v in re.findall(_N, m.group("range"))]
+        if p.points is None:
+            p.points = max(vals)
+            p.points_note = f"{m.group('range')} point(s)"
+        return " "
+    text = _POINTS_RANGE.sub(_points_range, text)
     text = _POINTS.sub(_points, text)
     if p.points is None and (m := _POINTS_P.search(text)) and re.search(r"[a-zà-ÿ]", text[:m.start()], re.I):
         p.points = float(m.group(1).replace(",", "."))
