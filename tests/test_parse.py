@@ -86,12 +86,36 @@ def test_points_and_allergens_together():
     "Lasagnes aux légumes (végé)",
     "Lasagnes aux légumes (veggie)",
     "Pâtes à la carbonara végé (1.3.7), salade verte",
+    "Vg lasagnes aux légumes",
+    "Vgt lasagnes aux légumes",
+    "Vg. lasagnes aux légumes",
+    "Vg/ lasagnes aux légumes",
+    "Vege lasagnes aux légumes 4pts",
+    "Végé lasagnes aux légumes",
+    "Veggie lasagnes aux légumes",
 ])
 def test_vegetarian(raw):
     p = parse(raw)
     assert p.vegetarian
     assert "végé" not in p.name.lower() and "viande" not in p.name.lower()
     assert not p.name.lower().endswith(" vg")
+    assert not p.name.lower().startswith(("vg", "veg", "végé"))
+
+
+@pytest.mark.parametrize("raw", ["Végétal burger", "Vegetable soup", "Veggie", "Vg 4 pts"])
+def test_vegetarian_prefix_needs_a_name(raw):
+    assert not parse(raw).vegetarian
+
+
+@pytest.mark.parametrize("raw", ["Végétarien du jour", "Vg du jour", "Végétarien servi au stand pâtes",
+                                 "Plat végétarien du jour"])
+def test_vegetarian_word_as_name_is_kept(raw):
+    assert parse(raw).name.lower().startswith(("vg", "végé", "plat"))
+
+
+@pytest.mark.parametrize("raw", ["Végétarien :", "Plat végétarien :", "Veggie :"])
+def test_vegetarian_header_alone_is_junk(raw):
+    assert parse(raw).kind == "JUNK"
 
 
 @pytest.mark.parametrize("raw, origins, labels, meats", [

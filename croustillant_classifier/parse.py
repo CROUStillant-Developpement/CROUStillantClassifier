@@ -288,8 +288,12 @@ _SECTION_PREFIX: list[tuple[str, str]] = [
     (r"formule(\s+[a-zéè]+)?|menu\s+[eé]tudiants?|hors\s+formule", "FORMULE"),
     (r"fruits?", "DESSERT"),
 ]
-# préfixes de régime
-_DIET_PREFIX = re.compile(rf"^(?:(?:plats?|options?|menus?|alternatives?|propositions?)\s+)?(?:{_VEG})\s*[:\-]\s*", re.I)
+# préfixes de régime : "VG : …", "Végé - …", "Vege/ …", "Vg. …" et sans séparateur "Vg ragoût de lentilles"
+# (sauf si la mention est le nom lui-même : "Végétarien du jour", "Vg servi au stand pâtes")
+_DIET_PREFIX = re.compile(
+    rf"^(?:(?:plats?|options?|menus?|alternatives?|propositions?)\s+)?(?:{_VEG})"
+    r"(?:\s*[:\-/.]\s*|\s+(?!(?:de|du|des|d|au|aux|a|à|en|et|ou|servie?s?|le|la|les|l)\b)(?=[^\W\d_]))",
+    re.I)
 # préfixes de chaîne / stand : retirés, conservés dans `station`
 _STATION_PREFIX = re.compile(
     r"^'?\s*(cha[iî]ne\s+(?:personnels?|perso|[eé]tudiant(?:e|s|es)?|[a-z0-9]+)|personnels?|[eé]tudiants?|"
